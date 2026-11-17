@@ -1,11 +1,11 @@
-# SELF
+# linux-riscv_learning
 
 操作系统、RISC-V、RTL 与网络硬件的个人学习工作区。学习路线见 [learn_1104.md](learn_1104.md)。
 
 ## 获取完整工程
 
 ```bash
-git clone --recurse-submodules <本仓库的 Git 地址>
+git clone --recurse-submodules https://github.com/Comestones/linux-riscv_learning.git
 ```
 
 已经克隆时运行 `git submodule update --init --recursive`。上游源码以 submodule 固定到具体提交，不自动跟随最新版本。开始修改上游代码时，可使用自己的 fork，并更新对应 submodule URL 和提交。
