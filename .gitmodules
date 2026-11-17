@@ -1,0 +1,9 @@
+[submodule "verilog-ethernet"]
+	path = ROSS/vivado-mcp-demo/verilog-ethernet
+	url = https://github.com/alexforencich/verilog-ethernet.git
+[submodule "rdma-core"]
+	path = ROSS/linux-rdma/rdma-core
+	url = https://github.com/linux-rdma/rdma-core.git
+[submodule "xv6-riscv"]
+	path = XV6_RISCV/xv6-riscv
+	url = https://github.com/mit-pdos/xv6-riscv.git
