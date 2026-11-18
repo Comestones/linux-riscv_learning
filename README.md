@@ -1,6 +1,6 @@
 # linux-riscv_learning
 
-操作系统、RISC-V、RTL 与网络硬件的个人学习工作区。学习路线见 [learn_1104.md](learn_1104.md)。
+操作系统、RISC-V、RTL 与网络硬件的个人学习工作区。学习路线见 [学习路线与验证进度](learning-roadmap.md)。
 
 ## 获取完整工程
 

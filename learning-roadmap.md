@@ -2,7 +2,7 @@
 
   
 
-整理日期：2026-11-04
+初稿 2026-11-04 · 本机验证更新于 2026-11-18
 
   
 
@@ -19,13 +19,9 @@
   
 
 | 学习对象 | 主要内容 | 主要工具 |
-
 | --- | --- | --- |
-
 | xv6-riscv | 系统调用、页表、异常、中断、进程调度 | RISC-V 编译器、QEMU、GDB |
-
 | RTL 与验证项目 | 时序逻辑、接口协议、测试用例、错误定位 | XSim、Verilator、cocotb 等 |
-
 | Ross + Vivado MCP | 查询工程、运行仿真和综合、分析日志及报告 | Vivado、MCP、AMD 官方 Skills |
 
   
@@ -50,19 +46,13 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
 
   
 
-### 当前起点
+### 第一周进度（2026-11-18）
 
-  
+Ubuntu 24.04.4 LTS 上已编译并启动 xv6，在 shell 中运行了 `ls`、`echo hello` 和 `cat README`。第 10.4 节记录了复现命令和退出方法。
 
-- 本次讨论中已打开 Vivado 2025.1。
+Windows 上已用 Vivado 2025.1 通过 MCP 展开 ExaNIC X10 的 RTL，详见[工程记录](ROSS/vivado-mcp-demo/README.txt)。Linux 终端尚找不到 `vivado` 和 `xsim`，当前会话也没有可调用的 Vivado MCP 工具。第一周剩余工作是配置 Linux Vivado/XSim 和 MCP，读取版本及工程信息，再完成计数器的行为仿真、综合和修改后复测。
 
-- 此前打开 Vivado 使用的是桌面操作；本聊天当时暴露的工具列表中没有 Vivado MCP 工具，因此尚未验证 MCP 连接成功。
-
-- 第一项验收应是：AI 实际调用 Vivado MCP，并获得 Vivado 返回的版本或工程信息。
-
-- 官方文档以 Vivado 2026.1 为测试基线，并说明 MCP 基于标准 Tcl 接口、架构上兼容已发布版本。当前 2025.1 可先进行连接练习；具体 Skill 和示例仍需检查最低版本要求。
-
-  
+Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用具体 Skill 前需核对其版本要求。
 
 ## 3. 六周入门计划
 
@@ -73,19 +63,12 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
   
 
 | 阶段 | 学习与实践 | Ross / AI 如何参与 | 完成标准 |
-
 | --- | --- | --- | --- |
-
-| 第 1 周：跑通两套环境 | 保留原计划的 MCP 连接、查询工程、计数器仿真；另外在 Linux / WSL2 中启动 xv6 | 调用 MCP 查询 Vivado 版本；辅助解释 xv6 编译和启动日志 | 得到真实 MCP 返回结果，并进入 xv6 shell |
-
+| 第 1 周：跑通两套环境 | 保留原计划的 MCP 连接、查询工程、计数器仿真；在 Ubuntu 上启动 xv6 | 调用 MCP 查询 Vivado 版本；辅助解释 xv6 编译和启动日志 | 进入 xv6 shell，取得本机 MCP 返回、计数器仿真日志和综合报告 |
 | 第 2 周：系统调用 | 跟踪一次用户程序调用进入内核的过程；完成 MIT syscall 实验中的 trace | 根据源码解释调用链，提供调试提示 | 能用 GDB 跟踪一次系统调用，相关实验测试通过 |
-
 | 第 3 周：页表与异常 | 阅读 vm.c、trap.c 和相关汇编；练习打印页表、观察异常寄存器 | 帮助对应源码、寄存器和运行现象 | 能解释虚拟地址转换，以及程序为何进入异常处理 |
-
 | 第 4 周：模块级验证 | 实现小型同步 FIFO，测试复位、满/空、同时读写和数据顺序 | 用 Ross 驱动 XSim；辅助生成测试框架、定位失败波形 | 测试能发现人为加入的错误，修复后回归通过 |
-
 | 第 5 周：RISC-V 硬件执行 | 跑通 Ibex Simple System 的裸机程序，观察指令跟踪和定时器行为 | AI 辅助分析构建脚本、反汇编和 RTL；使用项目原生仿真流程 | 能解释一段 C 程序如何变成指令并影响外设 |
-
 | 第 6 周：小型综合练习 | 选择定时器或寄存器外设，写功能说明、RTL、测试；用 Vivado 综合并阅读报告 | Ross 辅助仿真、综合和报告分析 | 留下一套可重复运行的测试，以及修改前后的结果对比 |
 
   
@@ -324,11 +307,13 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
 
   
 
-- [ ] 通过 MCP 得到 Vivado 的真实返回结果。
+- [x] Windows 上通过 MCP 查询 Vivado 并完成 ExaNIC X10 RTL 展开。
+
+- [ ] Linux 上通过 MCP 查询 Vivado 版本和当前工程。
 
 - [ ] 完成计数器仿真和综合。
 
-- [ ] 启动 xv6，进入 shell。
+- [x] Ubuntu 上启动 xv6，进入 shell 并运行用户程序（2026-11-18）。
 
 - [ ] 用 GDB 跟踪一次系统调用，完成 trace 练习。
 
@@ -395,15 +380,10 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
   
 
 | 记录项 | 要回答的问题 |
-
 | --- | --- |
-
 | 顶层端口 | 哪些连接板卡、时钟、复位和数据通道？ |
-
 | 业务实例 | 数据由哪个模块接收、处理和发送？ |
-
 | 连接 | 实例之间实际连接了哪些信号？ |
-
 | 源码 | 对应模块和实例位于哪个文件、哪一行？ |
 
   
@@ -445,9 +425,7 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
   
 
 | 时钟域 | 来源/频率 | 驱动对象 | 复位 | 与其他域的连接/CDC |
-
 | --- | --- | --- | --- | --- |
-
 | `<域名>` | `<实际来源>` | `<实例>` | `<实际来源>` | `<FIFO 或同步器及方向>` |
 
   
@@ -469,9 +447,7 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
   
 
 | 阶段 | 输入激励 | 预期输出 | 对应 RTL | 实际断言 |
-
 | --- | --- | --- | --- | --- |
-
 | `<阶段>` | `<测试代码>` | `<预期行为>` | `<模块/实例>` | `<检查项>` |
 
   
@@ -544,9 +520,7 @@ MCP 证据：工具名、命令、实际返回
 
   
 
-记录日期：2026-11-12。以下为部署方案，尚未在目标笔记本执行安装。目标机器目前运行 Windows 10；型号、CPU、内存、磁盘布局、剩余容量及是否保留 Windows 尚待确认，因此分区容量仅作为建议。
-
-  
+2026-11-18 实测环境为 Ubuntu 24.04.4 LTS（x86_64），内核 `7.0.0-43-generic`，内存约 15 GiB，项目所在分区当日可用约 425 GiB。工作目录为 `~/Project/linux-riscv_learning`。第 10.2～10.3 节保留 11 月 12 日的选型和安装方案，供部署其他机器时参考。
 
 ### 10.1 系统选择与学习需求
 
@@ -557,15 +531,10 @@ MCP 证据：工具名、命令、实际返回
   
 
 | 学习目录/方向 | 所需环境 | 说明 |
-
 | --- | --- | --- |
-
 | `ROSS/vivado-mcp-demo` | Vivado 2025.1、MCP、Icarus、Python/cocotb、波形工具 | Linux 重新检出源码，保留正确符号链接 |
-
 | `ROSS/linux-rdma/rdma-core` | C/C++、CMake、Linux 系统开发库 | 构建用户态代码不等于完成硬件 RDMA 通信验证 |
-
 | `XV6_RISCV/xv6-riscv` | RISC-V GCC、QEMU、GDB | 当前 Makefile 要求 QEMU ≥ 7.2 |
-
 | `LBEX` / Ibex 学习计划 | Verilator、FuseSoC、RISC-V 裸机工具链 | 检查时 `LBEX` 为空；按笔记中的 Ibex Simple System 计划准备 |
 
   
@@ -587,19 +556,12 @@ Ubuntu 24.04 的软件包更适合直接满足当前 xv6 的 QEMU 要求，标�
   
 
 | 资源 | 建议 |
-
 | --- | --- |
-
 | 8 GB RAM | 适合 xv6、源码阅读和小型仿真，完整 Vivado 工程可能吃力 |
-
 | 16 GB RAM | 可以起步，控制并行任务和工程规模 |
-
 | 32 GB RAM 或以上 | 更适合 Vivado、仿真器和编辑器同时运行 |
-
 | SSD | 512 GB 可起步，完整学习机更建议 1 TB |
-
 | Linux 空间 | 建议 250～400 GB 或更多；Vivado 实际需求以安装器所选组件为准 |
-
 | 独立显卡 | 当前学习路线无需专门配置 |
 
   
@@ -608,7 +570,7 @@ Ubuntu 24.04 的软件包更适合直接满足当前 xv6 的 QEMU 要求，标�
 
   
 
-### 10.3 在 Windows 10 笔记本上部署
+### 10.3 在 Windows 10 笔记本上部署（历史方案）
 
   
 
@@ -644,79 +606,26 @@ sudo reboot
 
   
 
-以下命令在 Ubuntu 终端执行。源码建议位于 `~/Project/SELF/`，项目目录保持 `ROSS/`、`LBEX/`、`XV6_RISCV/` 的组织方式，构建在 Linux 本地 ext4 文件系统中完成。
+**xv6 已完成首次启动。** 本机已有 `build-essential`、RISC-V GCC 13.3.0、Binutils、QEMU 8.2.2 和 GDB Multiarch 15.1。xv6 子模块位于仓库固定提交 `fa2ddcb7ca87a77af579380a6eafd5aff163b44f`。
 
-  
-
-**第一批：通用工具与 Git。**
-
-  
+在 VS Code 的 Ubuntu 终端中重新启动：
 
 ```bash
-
-sudo apt install \
-
-  git build-essential cmake ninja-build pkg-config \
-
-  curl wget unzip zip xz-utils \
-
-  python3 python3-venv python3-pip python3-dev \
-
-  gdb bc ripgrep tmux
-
-  
-
-git config --global user.name "你的名字"
-
-git config --global user.email "你的提交邮箱"
-
-git config --global core.autocrlf input
-
-```
-
-  
-
-安装 VS Code，通过 Git 获取项目。不要把 Windows 的虚拟环境、构建目录和符号链接占位文件直接复制来使用；未提交文件单独备份和核对。跨平台换行优先通过仓库 `.gitattributes` 统一。
-
-  
-
-**第二批：xv6。**
-
-  
-
-```bash
-
-sudo apt install \
-
-  qemu-system-misc gcc-riscv64-linux-gnu \
-
-  binutils-riscv64-linux-gnu gdb-multiarch
-
-  
-
-qemu-system-riscv64 --version
-
-riscv64-linux-gnu-gcc --version
-
-gdb-multiarch --version
-
-  
-
-# 检出工程后执行
-
-cd ~/Project/SELF/XV6_RISCV/xv6-riscv
-
+cd ~/Project/linux-riscv_learning/XV6_RISCV/xv6-riscv
 make qemu
-
 ```
 
-  
+出现 `init: starting sh` 和 `$` 后即可在 xv6 中输入命令。首次验证时，`ls` 列出了镜像中的文件，`echo hello` 输出了 `hello`，`cat README` 读出了文件内容。本机首次启动日志临时保存在 `/tmp/xv6-first-boot-20261118.log`。
 
-验收：进入 xv6 shell 并运行 `ls`；退出 QEMU 通常依次按 Ctrl+A、X。课程实验继续遵循同一学年的仓库、教材和工具要求。
+退出时先点击运行 xv6 的终端。按住 **Ctrl**，轻按 **A**，然后松开两个键。再单独按小写 **x**，无需回车。看到 `QEMU: Terminated` 即回到 Ubuntu。可以打开 [user/echo.c](XV6_RISCV/xv6-riscv/user/echo.c)，对照刚才的输出来读它如何处理参数和换行。
 
-  
+**后续工具按项目准备。** 本机还需按使用情况补齐 CMake、Ninja、curl 和 Python 开发环境。进入 Ethernet 或 RDMA 阶段时，在主仓库根目录运行 `git submodule update --init --recursive`，获取尚未初始化的 `verilog-ethernet` 和 `rdma-core`。
 
-**第三批：RTL 仿真。**
+```bash
+sudo apt install cmake ninja-build curl python3-venv python3-pip python3-dev
+```
+
+**开源 RTL 仿真（后续 FIFO / Ethernet 实验）。** 当前终端尚找不到 Icarus、Verilator 和 GTKWave。
 
   
 
@@ -740,7 +649,7 @@ gtkwave --version
 
 ```bash
 
-cd ~/Project/SELF/ROSS/vivado-mcp-demo
+cd ~/Project/linux-riscv_learning/ROSS/vivado-mcp-demo
 
 mkdir -p sim
 
@@ -758,7 +667,7 @@ source sim/.venv/bin/activate
 
   
 
-**第四批：Vivado 与 MCP。**
+**Vivado 与 MCP（第一周接下来要做）。**
 
   
 
@@ -780,7 +689,7 @@ vivado -version
 
   
 
-**第五批：Ibex 与 RDMA。**
+**Ibex 与 RDMA（后续阶段）。**
 
   
 
@@ -795,10 +704,8 @@ RDMA 构建依赖以本地 `rdma-core/README.md` 为准，在通用工具之外�
 ```bash
 
 sudo apt install \
-
-  libudev-dev libnl-3-dev libnl-route-3-dev \
-
-  valgrind cython3 python3-docutils pandoc
+  libudev-dev libnl-3-dev libnl-route-3-dev \
+  valgrind cython3 python3-docutils pandoc
 
 ```
 
@@ -836,13 +743,15 @@ sudo apt install \
 
   
 
-- [ ] 确认笔记本配置、是否保留 Windows、安装磁盘与容量。
+- [x] 已确认 Ubuntu 版本、架构、内核、内存及工作区可用空间。
 
-- [ ] 完成备份；Ubuntu 网络、磁盘和睡眠正常，保留的 Windows 可启动。
+- [ ] 如需验证双系统或重装，按第 10.3 节核对备份、启动及硬件。
 
-- [ ] Git 能获取工程并对应相同 commit。
+- [x] xv6 子模块已检出到主仓库固定的提交。
 
-- [ ] `make qemu` 进入 xv6 shell。
+- [ ] 初始化 Ethernet 与 rdma-core 子模块。
+
+- [x] `make qemu` 已进入 xv6 shell 并运行 `ls`。
 
 - [ ] Icarus、Verilator、波形工具可运行。
 
