@@ -2,7 +2,7 @@
 
   
 
-初稿 2026-11-04 · 本机验证更新于 2026-11-18
+初稿 2026-11-04 · 最近实测 2026-11-18 · 平台分工更新于 2026-11-19
 
   
 
@@ -46,11 +46,15 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
 
   
 
-### 第一周进度（2026-11-18）
+### 第一周进度与下一步（2026-11-19 整理）
 
-Ubuntu 24.04.4 LTS 上已编译并启动 xv6，在 shell 中运行了 `ls`、`echo hello` 和 `cat README`。第 10.4 节记录了复现命令和退出方法。
+| 执行平台 | 任务 | 状态与验收依据 |
+| --- | --- | --- |
+| Windows | 通过 MCP 查询并展开 ExaNIC X10 工程 | **已完成（11-11）**。Vivado 2025.1 已展开顶层 `fpga`，目标器件为 `xcku035-fbva676-2-e`，记录了 43 个上游 RTL 文件、4 个约束文件和 2 个 IP。[工程记录](ROSS/vivado-mcp-demo/README.txt) |
+| Windows | 独立计数器练习 | **待完成**。编写 RTL 和 testbench，用 XSim 验证复位与计数，再用 Vivado 综合。修改一处计数逻辑后复测，保留两次仿真日志和综合报告。 |
+| Linux（Ubuntu） | 用现有 RISC-V 工具链编译、启动 xv6 | **已完成（11-18）**。在 xv6 shell 中运行了 `ls`、`echo hello` 和 `cat README`。复现命令与退出方法见第 10.4 节。 |
 
-Windows 上已用 Vivado 2025.1 通过 MCP 展开 ExaNIC X10 的 RTL，详见[工程记录](ROSS/vivado-mcp-demo/README.txt)。Linux 终端尚找不到 `vivado` 和 `xsim`，当前会话也没有可调用的 Vivado MCP 工具。第一周剩余工作是配置 Linux Vivado/XSim 和 MCP，读取版本及工程信息，再完成计数器的行为仿真、综合和修改后复测。
+本周下一步是在 Windows 上完成计数器练习。Ubuntu 的首次启动记录已满足本周 xv6 验收条件。
 
 Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用具体 Skill 前需核对其版本要求。
 
@@ -64,7 +68,7 @@ Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用�
 
 | 阶段 | 学习与实践 | Ross / AI 如何参与 | 完成标准 |
 | --- | --- | --- | --- |
-| 第 1 周：跑通两套环境 | 保留原计划的 MCP 连接、查询工程、计数器仿真；在 Ubuntu 上启动 xv6 | 调用 MCP 查询 Vivado 版本；辅助解释 xv6 编译和启动日志 | 进入 xv6 shell，取得本机 MCP 返回、计数器仿真日志和综合报告 |
+| 第 1 周：验证开发环境 | Windows 查询 Vivado 工程，完成计数器仿真、综合和复测；Ubuntu 编译并启动 xv6 | 用 Windows MCP 查询版本与工程信息，结合 Ubuntu 日志解释 xv6 启动过程 | Windows 留存 MCP 工程记录、计数器修改前后的仿真日志与综合报告；Ubuntu 留存 xv6 shell 运行记录 |
 | 第 2 周：系统调用 | 跟踪一次用户程序调用进入内核的过程；完成 MIT syscall 实验中的 trace | 根据源码解释调用链，提供调试提示 | 能用 GDB 跟踪一次系统调用，相关实验测试通过 |
 | 第 3 周：页表与异常 | 阅读 vm.c、trap.c 和相关汇编；练习打印页表、观察异常寄存器 | 帮助对应源码、寄存器和运行现象 | 能解释虚拟地址转换，以及程序为何进入异常处理 |
 | 第 4 周：模块级验证 | 实现小型同步 FIFO，测试复位、满/空、同时读写和数据顺序 | 用 Ross 驱动 XSim；辅助生成测试框架、定位失败波形 | 测试能发现人为加入的错误，修复后回归通过 |
@@ -73,19 +77,23 @@ Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用�
 
   
 
-### 第 1 周保留的原计划内容
+### 开发与运行平台分工
 
-  
+默认在 Windows 的 VS Code 中阅读和修改源码、编写测试、分析日志并整理笔记。需要在 Ubuntu 执行时，通过 Git 同步对应提交，在 Linux 工作副本运行下表指定的步骤。
 
-1. 检查 Vivado 路径、扩展和 MCP 配置，列出实际可用工具。
+| 项目 | Windows 上完成 | 何时使用 Linux |
+| --- | --- | --- |
+| Vivado / RTL（第 1、4、6 周） | 编写计数器、FIFO、外设及 testbench，用现有 Vivado MCP、XSim 做工程查询、行为仿真、综合和报告分析 | 仅在有明确的 Linux 工程复现需求时部署 Linux Vivado |
+| xv6（第 1～3 周） | 阅读和修改 C、汇编及测试，梳理系统调用与页表 | 构建、启动、运行实验测试或 GDB 调试时，使用已跑通的 Ubuntu 工具链 |
+| ExaNIC X10 / cocotb | 分析和修改 RTL 与 Python 测试，优先在 Windows 检查仿真依赖和源码路径 | 若原始 pytest 测试仍受 `lib/eth` 符号链接或仿真依赖阻塞，在 Ubuntu 检出同一提交后运行该测试（见第 9.7 节） |
+| Ibex（第 5 周） | 阅读和修改裸机程序及 RTL，优先按项目原生流程构建 | 若所选版本的构建脚本或工具依赖在 Windows 无法运行，将对应构建和仿真步骤放到 Ubuntu |
+| Linux RDMA（后续） | 阅读和修改 `rdma-core` 源码 | 编译、运行及调试依赖 Linux RDMA 子系统的代码时使用 Ubuntu |
 
-2. 通过 MCP 查询版本、当前工程、顶层模块、目标器件和源文件。
+### 第 1 周 Windows 待办顺序
 
-3. 使用简单计数器和 testbench，运行行为仿真与综合。
-
-4. 阅读 `vivado-simulate-rtl` 的 `SKILL.md`，理解检查环境、执行、读取日志、定位问题的过程。
-
-5. 对一处小修改重新运行流程，比较代码、日志和报告。
+1. 复用已验证的 Vivado 2025.1 和 MCP 配置。开始计数器练习时核对当前工程、顶层、器件和源文件，确保仿真与综合指向计数器。阅读 `vivado-simulate-rtl/SKILL.md`，核对版本要求。
+2. 编写计数器和自检 testbench，分别检查复位值和每个有效时钟沿后的计数值。用 XSim 跑行为仿真，保存断言结果或波形，再综合计数器 RTL 并保存报告。
+3. 修改一处计数行为，例如将步长由 1 改为 2。按新预期更新测试，重新仿真和综合，对照修改前后的计数序列与资源使用情况。
 
   
 
@@ -309,9 +317,9 @@ Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用�
 
 - [x] Windows 上通过 MCP 查询 Vivado 并完成 ExaNIC X10 RTL 展开。
 
-- [ ] Linux 上通过 MCP 查询 Vivado 版本和当前工程。
+- [ ] Windows 上完成计数器行为仿真与综合，保存基线日志和报告。
 
-- [ ] 完成计数器仿真和综合。
+- [ ] Windows 上修改计数器并复测，记录修改前后的差异。
 
 - [x] Ubuntu 上启动 xv6，进入 shell 并运行用户程序（2026-11-18）。
 
@@ -532,7 +540,7 @@ MCP 证据：工具名、命令、实际返回
 
 | 学习目录/方向 | 所需环境 | 说明 |
 | --- | --- | --- |
-| `ROSS/vivado-mcp-demo` | Vivado 2025.1、MCP、Icarus、Python/cocotb、波形工具 | Linux 重新检出源码，保留正确符号链接 |
+| `ROSS/vivado-mcp-demo` | Windows 使用 Vivado 2025.1、MCP、XSim；Ethernet 原始测试另需 Python/cocotb 与仿真器 | 原始测试需转到 Linux 时，在 Linux 重新检出源码以保留符号链接 |
 | `ROSS/linux-rdma/rdma-core` | C/C++、CMake、Linux 系统开发库 | 构建用户态代码不等于完成硬件 RDMA 通信验证 |
 | `XV6_RISCV/xv6-riscv` | RISC-V GCC、QEMU、GDB | 当前 Makefile 要求 QEMU ≥ 7.2 |
 | `LBEX` / Ibex 学习计划 | Verilator、FuseSoC、RISC-V 裸机工具链 | 检查时 `LBEX` 为空；按笔记中的 Ibex Simple System 计划准备 |
@@ -667,11 +675,11 @@ source sim/.venv/bin/activate
 
   
 
-**Vivado 与 MCP（第一周接下来要做）。**
+**Linux Vivado 与 MCP（仅供后续跨平台复现）。**
 
   
 
-先安装 Linux 版 Vivado 2025.1，与 Windows 工程版本保持一致。按安装器提示配置依赖，选择实际所需器件包；当前 ExaNIC X10 工程需支持 Kintex UltraScale 目标器件。安装路径按本机确定，以下为占位示例：
+仅当需要在 Linux 重建并对照 Windows 工程结果时，才安装同版本的 Vivado 2025.1，并按安装器提示配置依赖。ExaNIC X10 工程需选择支持目标 Kintex UltraScale 器件的器件包。将下列路径替换为实际安装位置。
 
   
 
@@ -757,9 +765,9 @@ sudo apt install \
 
 - [ ] 原始 `run_test` 有实际通过/失败记录。
 
-- [ ] Linux Vivado 可启动，MCP 返回版本与 `42`。
+- [ ] 选做（跨平台复现时）：Linux Vivado 可启动，MCP 返回版本与 `42`。
 
-- [ ] 当前 RTL 工程在 Linux 重建并展开成功。
+- [ ] 选做（跨平台复现时）：当前 RTL 工程在 Linux 重建并展开成功。
 
 - [ ] 按进度开展 Ibex、RDMA 与综合实现学习。
 
