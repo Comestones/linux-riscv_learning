@@ -2,7 +2,7 @@
 
   
 
-初稿 2026-11-04 · 最近实测 2026-11-18 · 平台分工更新于 2026-11-19
+初稿 2026-11-04 · 最近实测 2026-11-19 · 平台分工更新于 2026-11-19
 
   
 
@@ -53,6 +53,7 @@ MIT 的 xv6 入门流程使用 QEMU；Ross 官方 Vivado Skills 覆盖 RTL 仿�
 | Windows | 通过 MCP 查询并展开 ExaNIC X10 工程 | **已完成（11-11）**。Vivado 2025.1 已展开顶层 `fpga`，目标器件为 `xcku035-fbva676-2-e`，记录了 43 个上游 RTL 文件、4 个约束文件和 2 个 IP。[工程记录](ROSS/vivado-mcp-demo/README.txt) |
 | Windows | 独立计数器练习 | **待完成**。编写 RTL 和 testbench，用 XSim 验证复位与计数，再用 Vivado 综合。修改一处计数逻辑后复测，保留两次仿真日志和综合报告。 |
 | Linux（Ubuntu） | 用现有 RISC-V 工具链编译、启动 xv6 | **已完成（11-18）**。在 xv6 shell 中运行了 `ls`、`echo hello` 和 `cat README`。复现命令与退出方法见第 10.4 节。 |
+| Linux（Ubuntu） | 验证本机 Vivado / XSim 2025.1 | **已完成（11-19）**。最小 Verilog 用例输出 `XSIM_SMOKE_PASS`，在 1 ns 正常结束。详见第 10.4 节。 |
 
 本周下一步是在 Windows 上完成计数器练习。Ubuntu 的首次启动记录已满足本周 xv6 验收条件。
 
@@ -83,7 +84,7 @@ Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用�
 
 | 项目 | Windows 上完成 | 何时使用 Linux |
 | --- | --- | --- |
-| Vivado / RTL（第 1、4、6 周） | 编写计数器、FIFO、外设及 testbench，用现有 Vivado MCP、XSim 做工程查询、行为仿真、综合和报告分析 | 仅在有明确的 Linux 工程复现需求时部署 Linux Vivado |
+| Vivado / RTL（第 1、4、6 周） | 编写计数器、FIFO、外设及 testbench，用现有 Vivado MCP、XSim 做工程查询、行为仿真、综合和报告分析 | 需要跨平台复现时，使用已验证的 Linux Vivado / XSim 2025.1 |
 | xv6（第 1～3 周） | 阅读和修改 C、汇编及测试，梳理系统调用与页表 | 构建、启动、运行实验测试或 GDB 调试时，使用已跑通的 Ubuntu 工具链 |
 | ExaNIC X10 / cocotb | 分析和修改 RTL 与 Python 测试，优先在 Windows 检查仿真依赖和源码路径 | 若原始 pytest 测试仍受 `lib/eth` 符号链接或仿真依赖阻塞，在 Ubuntu 检出同一提交后运行该测试（见第 9.7 节） |
 | Ibex（第 5 周） | 阅读和修改裸机程序及 RTL，优先按项目原生流程构建 | 若所选版本的构建脚本或工具依赖在 Windows 无法运行，将对应构建和仿真步骤放到 Ubuntu |
@@ -322,6 +323,8 @@ Ross 文档以 Vivado 2026.1 为测试基线。本项目沿用 2025.1，使用�
 - [ ] Windows 上修改计数器并复测，记录修改前后的差异。
 
 - [x] Ubuntu 上启动 xv6，进入 shell 并运行用户程序（2026-11-18）。
+
+- [x] Ubuntu 上运行 XSim 2025.1 最小 Verilog 仿真（2026-11-19）。
 
 - [ ] 用 GDB 跟踪一次系统调用，完成 trace 练习。
 
@@ -675,17 +678,19 @@ source sim/.venv/bin/activate
 
   
 
-**Linux Vivado 与 MCP（仅供后续跨平台复现）。**
+**Linux Vivado / XSim 实测（2026-11-19）与后续 MCP 复现。**
 
   
 
-仅当需要在 Linux 重建并对照 Windows 工程结果时，才安装同版本的 Vivado 2025.1，并按安装器提示配置依赖。ExaNIC X10 工程需选择支持目标 Kintex UltraScale 器件的器件包。将下列路径替换为实际安装位置。
+本机已安装 Vivado ML Standard 2025.1，Tcl 查询可找到目标器件 `xcku035-fbva676-2-e`。补齐 `en_US.UTF-8` 后重新生成器件清单，`wc -l` 确认 `Vivado/data/parts/installed_devices.txt` 共 162 行。
+
+Ubuntu 终端运行 `xsim smoke_sim -runall`，XSim 2025.1（SW Build 6140274）输出 `XSIM_SMOKE_PASS`，随后 `smoke.v` 第 5 行在 1 ns 调用 `$finish`，仿真正常退出。新终端可用下列命令加载同一套工具。
 
   
 
 ```bash
 
-source /你的安装路径/Vivado/2025.1/settings64.sh
+source "$HOME/tools/Xilinx/2025.1/Vivado/settings64.sh"
 
 vivado -version
 
@@ -765,7 +770,9 @@ sudo apt install \
 
 - [ ] 原始 `run_test` 有实际通过/失败记录。
 
-- [ ] 选做（跨平台复现时）：Linux Vivado 可启动，MCP 返回版本与 `42`。
+- [x] Linux Vivado 2025.1 可启动，器件清单已生成，XSim 最小仿真通过。
+
+- [ ] 选做（跨平台复现时）：通过 Linux Vivado MCP 取得版本与 `42` 的返回值。
 
 - [ ] 选做（跨平台复现时）：当前 RTL 工程在 Linux 重建并展开成功。
 
