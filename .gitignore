@@ -23,4 +23,5 @@ __pycache__/
 *.fst
 *.wdb
 dfx_runtime.txt
-ROSS/vivado-mcp-demo/reports/
+/ethernet-x10/reports/
+/ethernet-x10/sim/
