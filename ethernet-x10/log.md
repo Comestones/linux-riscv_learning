@@ -1,8 +1,60 @@
-# 2026-11-20 · ExaNIC X10 UDP 回显走读与首次试跑
+# ExaNIC X10 学习日志
+
+每次学习在本页按日期追加一节，最近一次放在最上面。[工程框架](README.md#工程框架) · [仿真环境与固定依赖](udp-verification.md#在-ubuntu-运行原始-pytest)
+
+## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
+
+**状态：待在 Ubuntu 实测。** 今天只运行上游原始用例 `test_fpga_core.py::test_fpga_core`。目标是从仿真日志认出端口 1 上的四帧，并用断言确认最后一帧回给了谁、带回了哪些数据。整次实验在 Icarus 中运行，无需连接板卡。
+
+### 1. 同步工程，准备环境
+
+在 Ubuntu 的 Bash 中进入已有的 SELF 主仓库根目录，运行 `git pull --ff-only` 取回本计划。用 `command -v uv`、`command -v iverilog`、`command -v vvp` 检查工具。缺 Icarus 时用 `sudo apt install iverilog` 安装，缺 uv 时按其官方说明安装。[uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/)
+
+从主仓库根目录执行环境指南的第一段命令。它会初始化子模块、进入 `ethernet-x10/`、激活 Python 3.10 虚拟环境并安装固定版本的依赖。确认依赖安装成功、`iverilog -V` 能输出版本，且最后一行显示 `RTL OK`，然后留在同一个终端继续。若缺少 `RTL OK`，先检查测试所用的 `fpga/lib/eth` 是否为 Linux 工作副本中的目录符号链接。[Ubuntu 环境准备](udp-verification.md#在-ubuntu-运行原始-pytest)
+
+### 2. 预测四帧，再运行一个用例
+
+开跑前，写下 FPGA 收到第一个 UDP 请求后最先发出什么帧，以及这帧在查询哪个 IP。然后在 `ethernet-x10/` 中执行下面的命令。终端会实时显示 INFO 日志，`sim/x10-pytest.log` 保存本次完整输出。
+
+```bash
+git -C verilog-ethernet rev-parse --short HEAD
+python --version
+set -o pipefail
+SIM=icarus python -m pytest -v -s --log-cli-level=INFO \
+  verilog-ethernet/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py::test_fpga_core \
+  2>&1 | tee sim/x10-pytest.log
+run_status=$?
+printf '退出码 %s\n' "$run_status"
+```
+
+### 3. 用日志与断言验收
+
+```bash
+grep -nE 'test UDP RX packet|receive ARP request|send ARP response|receive UDP packet|run_test.*(PASS|passed)|1 passed' sim/x10-pytest.log
+```
+
+| 依次寻找的日志标记 | 预期方向 | 要从报文或断言中核对的内容 |
+| --- | --- | --- |
+| `test UDP RX packet` | 主机 → FPGA | 请求从主机端口 `5678` 发往 FPGA 端口 `1234`。 |
+| `receive ARP request` | FPGA → 主机 | FPGA 广播查询 `192.168.1.100` 的 MAC。 |
+| `send ARP response` | 主机 → FPGA | 主机返回自己的 MAC `5a:51:52:53:54:55`。 |
+| `receive UDP packet` | FPGA → 主机 | 回包从 `1234` 发往 `5678`，载荷仍是从 `00` 到 `ff` 的 256 字节。 |
+
+四条 INFO 标记在相应收发操作**之前**打印。判断成功还要同时看到 cocotb 的 `run_test` 为 `PASS`、pytest 的 `1 passed` 和退出码 `0`。若停在某一阶段，记下最后一个标记和紧随其后的错误或断言行，方便下次从同一处继续。[ARP 断言](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py#L103-L123) · [UDP 回包断言](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py#L135-L151)
+
+**Ubuntu 实测回填**
+
+| 记录项 | 本次实际结果 |
+| --- | --- |
+| 子模块提交、Python 和 Icarus 版本 | 待填 |
+| cocotb 汇总、pytest 汇总、退出码 | 待填 |
+| 实际帧序与预测是否一致，或首次失败位置 | 待填 |
+
+## 2026-11-20 · ExaNIC X10 UDP 回显走读与首次试跑
 
 今天从 `test_fpga_core.py` 的输入和断言出发，沿 RTL 追踪端口过滤、ARP 查询和载荷 FIFO。实验选用上游提交 `77320a9471d19c7dd383914bc049e02d9f4f1ffb`，被测模块是 `fpga_core`，输入和输出都在端口 1 的 XGMII 接口。
 
-## 阅读时提出的问题
+### 阅读时提出的问题
 
 **前面的步骤都是代码阅读吗？为什么先看第 166 行？**
 
@@ -37,9 +89,7 @@ IPv4 地址属于网络层（L3），标识最终目的地。以太网 MAC 地�
 
 信号名带有通路前缀。第 285 行用 `match_cond_reg` 控制送给 FIFO 的 `tvalid`，第 286 行把 FIFO 的 `tready` 传回匹配的 UDP 通路，第 287 行将上游 `tlast` 接到 FIFO 输入。上升沿上 `tvalid && tready` 表示接受一拍，若该拍 `tlast` 也为 1，就接受了包尾。例化的 `udp_payload_fifo` 使用普通 FIFO 模式，实际的写入条件在 `axis_fifo.v` 第 310 行，写 RAM 和指针加一在第 337～338 行。[通路连线](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/example/ExaNIC_X10/fpga/rtl/fpga_core.v#L283-L288) · [FIFO 写入](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/lib/axis/rtl/axis_fifo.v#L308-L340)
 
-## 原始 run_test 实验
-
-### 当前 Windows 环境能直接运行吗？需要 Linux 吗？
+### 原始 run_test 在 Windows 上的首次试跑
 
 今天在 Windows 的 `ethernet-x10/` 目录试跑了原始入口。
 
@@ -58,20 +108,6 @@ Python 3.11.7 返回 `No module named pytest`，退出码为 1。测试在加载
 
 原生 Windows 可以配置这套工具。今天建议用已有的 Ubuntu 机器，在 Linux 文件系统里用 Git 检出工程可以保留目录链接，也能沿用项目记录的 Python 3.10 与 Icarus 流程。上次 Ubuntu 上通过的是 XSim 最小用例，Icarus 和 Python 测试依赖还需要在那台机器上核实。[cocotb-test 0.2.4 平台与仿真器说明](https://pypi.org/project/cocotb-test/0.2.4/) · [Ubuntu 工具记录](../riscv-systems/ubuntu-setup.md)
 
-### Ubuntu 上的第一项实验（待运行）
-
-1. 在 Ubuntu 的 Bash 中进入 Linux 文件系统上的 SELF 主仓库，运行 `git submodule update --init --recursive -- ethernet-x10/verilog-ethernet`，再 `cd ethernet-x10`。运行 `test -f verilog-ethernet/example/ExaNIC_X10/fpga/lib/eth/rtl/udp_64.v && echo "RTL OK"`，应当看到 `RTL OK`。
-2. 用 `command -v iverilog` 和 `command -v vvp` 检查 Icarus 的两个程序。缺少时可用 `sudo apt install iverilog` 安装。用 `command -v uv` 检查 Python 环境工具，再按项目文档建立并激活 `sim/.venv`、安装固定版本的依赖。[Ubuntu 基线实验的环境命令](udp-verification.md#在-ubuntu-运行原始-pytest) · [uv 官方安装说明](https://docs.astral.sh/uv/getting-started/installation/)
-3. 在同一个已激活虚拟环境的终端只运行 X10 这个用例。开启 INFO 日志以便对照前面的四帧表，并把输出留在 `sim/x10-pytest.log`。
-
-```bash
-set -o pipefail
-SIM=icarus python -m pytest -v -s --log-cli-level=INFO \
-  verilog-ethernet/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py::test_fpga_core \
-  2>&1 | tee sim/x10-pytest.log
-echo $?
-```
-
-**通过时看什么？** 在日志中依次找 `test UDP RX packet`、`receive ARP request`、`send ARP response`、`receive UDP packet`。这些是测试进行到各步骤时打印的文字。最后确认 cocotb 将 `run_test` 标为 `PASS`、pytest 显示 `1 passed`、退出码为 0。这样才能确认两端地址、端口和 256 字节回显载荷都通过了断言。
+当时安排的下一步是换到 Ubuntu 运行同一用例，对照预测的四帧检查断言。具体命令与验收表已归入 11 月 23 日的实验计划。
 
 **通过后再验证 ARP 缓存。** 在单独的实验用例中保持同一次仿真和同一主机地址，收到第一次回包后立即再发一帧 UDP。预测第二次从 FPGA 收到的第一帧就是 UDP 回包，再对比两次事务中出现的 ARP 帧数。重新启动 pytest 会重新执行复位，无法沿用第一笔事务建立的缓存。

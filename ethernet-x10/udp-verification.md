@@ -14,27 +14,31 @@
 
 ## 在 Ubuntu 运行原始 pytest
 
-2026-11-20 整理时仍待取得原用例的通过记录。用 Linux 的 Git 工作副本保留目录符号链接，按固定提交的 `tox.ini` 配置独立的 Python 3.10 环境。以下命令在 Ubuntu 的 Bash 中执行，从主仓库根目录开始。需要 `uv` 和 Icarus Verilog，`iverilog -V` 应能返回版本。[上游依赖清单](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tox.ini) · [uv 的 Python 工具说明](https://docs.astral.sh/uv/guides/install-python/)
+用 Linux 的 Git 工作副本保留目录符号链接，按固定提交的 `tox.ini` 配置独立的 Python 3.10 环境。以下命令在 Ubuntu 的 Bash 中执行，从主仓库根目录开始。需要 `uv` 和 Icarus Verilog，`iverilog -V` 应能返回版本。每次运行的计划与结果集中在[学习日志](log.md)。[上游依赖清单](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tox.ini) · [uv 的 Python 工具说明](https://docs.astral.sh/uv/guides/install-python/)
 
 ```bash
 git submodule update --init --recursive -- ethernet-x10/verilog-ethernet
 cd ethernet-x10
 mkdir -p sim
-uv python install 3.10
-uv venv --python 3.10 sim/.venv
+if [ ! -x sim/.venv/bin/python ]; then
+  uv python install 3.10
+  uv venv --python 3.10 sim/.venv
+fi
 source sim/.venv/bin/activate
 uv pip install pytest==7.2.1 pytest-xdist==3.1.0 pytest-split==0.8.0 \
   cocotb==1.7.2 cocotb-bus==0.2.1 cocotb-test==0.2.4 \
   cocotbext-axi==0.1.20 cocotbext-eth==0.1.22 scapy==2.5.0 jinja2==3.1.2
 iverilog -V
-test -f verilog-ethernet/example/ExaNIC_X10/fpga/lib/eth/rtl/udp_64.v
+test -f verilog-ethernet/example/ExaNIC_X10/fpga/lib/eth/rtl/udp_64.v && echo "RTL OK"
 ```
 
-确认最后一条的退出码为 0，再在同一终端运行下列命令。日志在 `sim/`，上游测试脚本把仿真构建目录建在测试文件旁的 `sim_build/`。
+确认终端显示 `RTL OK`，再在同一终端运行下列命令。日志在 `sim/`，上游测试脚本把仿真构建目录建在测试文件旁的 `sim_build/`。
 
 ```bash
 set -o pipefail
-python -m pytest -v -s verilog-ethernet/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py::test_fpga_core 2>&1 | tee sim/x10-pytest.log
+SIM=icarus python -m pytest -v -s --log-cli-level=INFO \
+  verilog-ethernet/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py::test_fpga_core \
+  2>&1 | tee sim/x10-pytest.log
 echo $?
 ```
 
