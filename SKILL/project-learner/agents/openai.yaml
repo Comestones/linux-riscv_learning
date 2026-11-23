@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Learner"
+  short_description: "Learn any codebase with source-backed guided lessons"
+  default_prompt: "Use $project-learner to help me understand and master the current project."
