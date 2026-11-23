@@ -4,7 +4,7 @@
 
 ## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
 
-**状态：待在 Ubuntu 实测。** 今天只运行上游原始用例 `test_fpga_core.py::test_fpga_core`。目标是从仿真日志认出端口 1 上的四帧，并用断言确认最后一帧回给了谁、带回了哪些数据。整次实验在 Icarus 中运行，无需连接板卡。
+**Ubuntu 基线已通过。** 今天只运行上游原始用例 `test_fpga_core.py::test_fpga_core`。目标是从仿真日志认出端口 1 上的四帧，并用断言确认最后一帧回给了谁、带回了哪些数据。整次实验在 Icarus 中运行，无需连接板卡。
 
 ### 1. 同步工程，准备环境
 
@@ -46,9 +46,10 @@ grep -nE 'test UDP RX packet|receive ARP request|send ARP response|receive UDP p
 
 | 记录项 | 本次实际结果 |
 | --- | --- |
-| 子模块提交、Python 和 Icarus 版本 | 待填 |
-| cocotb 汇总、pytest 汇总、退出码 | 待填 |
-| 实际帧序与预测是否一致，或首次失败位置 | 待填 |
+| 子模块提交、Python 和 Icarus 版本 | `77320a9471d19c7dd383914bc049e02d9f4f1ffb`，Python `3.10.22`，Icarus Verilog `12.0 (stable)`。 |
+| cocotb 汇总、pytest 汇总、退出码 | `run_test` 为 `PASS`（仿真时间 4390.40 ns，实际用时 2.68 s）。cocotb 汇总为 `TESTS=1 PASS=1 FAIL=0 SKIP=0`，pytest 显示 `1 passed in 3.57s`，终端确认退出码为 `0`。 |
+| 测试台阶段标记（`sim/x10-pytest.log`） | 121.60 ns 依次打印第 96 行 `test UDP RX packet` 和第 97 行 `receive ARP request`。<br>3596.80 ns 依次打印第 105 行 `send ARP response` 和第 106 行 `receive UDP packet`。 |
+| 实际帧序与预测是否一致，或首次失败位置 | 与预测一致。端口 1 依次出现 UDP 请求、ARP 请求、ARP 应答、UDP 回包。主机在 4377.60 ns 收到发往 `192.168.1.100:5678` 的回包，载荷仍是从 `00` 到 `ff` 的 256 字节。 |
 
 ## 2026-11-20 · ExaNIC X10 UDP 回显走读与首次试跑
 
