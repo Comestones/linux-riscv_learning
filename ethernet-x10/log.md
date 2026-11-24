@@ -4,7 +4,7 @@
 
 ## 2026-11-24 · ARP 什么时候需要发广播？
 
-昨天已读完 UDP 回显通路，并在 Ubuntu 上通过了 `fpga_core` 的原始用例（`1 passed in 3.57s`，退出码 `0`）。今天沿着回包路径深入一层，单独验证 `arp` 模块。**目标是用两段日志解释，同一子网中的两个 IP 为什么一个能直接查到 MAC，另一个需要先发广播。** 今日实验待运行。
+昨天已读完 UDP 回显通路，并在 Ubuntu 上通过了 `fpga_core` 的原始用例（`1 passed in 3.57s`，退出码 `0`）。今天沿着回包路径深入一层，单独验证 `arp` 模块。**目标是用两段日志解释，同一子网中的两个 IP 为什么一个能直接查到 MAC，另一个需要先发广播。** 64 位 ARP 用例已在 Ubuntu 通过。
 
 ### 1. 先读两种输入，写下预测
 
@@ -35,14 +35,18 @@ printf '退出码 %s\n' "$run_status"
 | `192.168.1.100` | 模块已从先前收到的 ARP 请求学到该主机地址，直接返回缓存结果。 | `error=0`，MAC 为 `5a:51:52:53:54:55`。 |
 | `192.168.1.102` | 模块发出目的 MAC 为 `ff:ff:ff:ff:ff:ff` 的 ARP 请求，`op=1`、`pdst=192.168.1.102`。测试台随后代主机应答。 | 收到应答后返回 `error=0`，MAC 为 `6a:61:62:63:64:65`。 |
 
-用两处 RTL 解释差异。`arp.v` 把收到的发送者 IP/MAC 提交给缓存，`arp_cache.v` 检查表项有效位和 IP 是否都匹配。最后回到昨天的 X10 场景，回答“同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？”今天的用例覆盖 ARP 模块，两次 UDP 连发留作端到端验证。[缓存写入](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L295-L302) · [缓存命中条件](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp_cache.v#L164-L170)
+用两处 RTL 解释差异。`arp.v` 把收到的发送者 IP/MAC 提交给缓存，`arp_cache.v` 检查表项有效位和 IP 是否都匹配。[缓存写入](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L295-L302) · [缓存命中条件](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp_cache.v#L164-L170)
 
-**验收与回填。** 一个 pytest 参数项内，cocotb 会组合输入停顿与输出背压各开、关两种情况。预期汇总为 `TESTS=4 PASS=4 FAIL=0 SKIP=0`，pytest 显示 `1 passed`，终端退出码为 `0`。[测试组合](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tb/arp/test_arp.py#L319-L340)
+**Ubuntu 实测。** 一个 64 位 pytest 参数项内，cocotb 运行了输入停顿和输出背压的四种开关组合。下表用 `sim/x10-arp64.log` 中的 `run_test_004` 对照两次查询。[测试组合](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tb/arp/test_arp.py#L319-L340)
 
 | 实测项 | 本次结果 |
 | --- | --- |
-| `.100` 查到的 MAC，以及 `.102` 广播查询的目标 IP 和最终 MAC | 待填 |
-| cocotb 汇总、pytest 汇总、退出码（失败时记录首条报错） | 待填 |
+| 主机 `.100` 先询问 `.101` | 第 336 行开始 `test ARP request`。第 339 行（44000.00 ns），测试台收到 `.101` 给 `.100` 的单播应答，`op=is-at`，目的 MAC 为 `5a:51:52:53:54:55`。 |
+| 内部查询 `192.168.1.100` | 第 340 行 `Cached read` 后，第 341 行（44048.00 ns）直接返回 `error=0, mac=99305320043605`，即 `5a:51:52:53:54:55`。 |
+| 内部查询 `192.168.1.102` | 第 342 行开始 `Uncached read, inside subnet`。第 344 行（44224.00 ns），`.101` 发出 `op=who-has` 请求，以太网目的 MAC 为 `ff:ff:ff:ff:ff:ff`，ARP 目标为 `pdst=192.168.1.102`。测试台代 `.102` 应答后，第 346 行（44392.00 ns）返回 `error=0, mac=116966495052901`，即 `6a:61:62:63:64:65`。 |
+| cocotb 汇总、pytest 汇总、退出码 | `TESTS=4 PASS=4 FAIL=0 SKIP=0`（累计仿真 58488.00 ns），pytest 显示 `1 passed in 1.72s`，终端退出码为 `0`。 |
+
+**同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？** 在昨天的 X10 回显用例中，FPGA 已从第一笔事务的 ARP 应答学到主机 `.100` 的 MAC。如果紧接着收到同一主机的第二个 UDP 请求，且缓存项仍然有效，FPGA 就能直接取得目的 MAC 并封装回包。预计省去 FPGA 广播的 ARP 请求和主机发给 FPGA 的 ARP 应答，线上只剩主机发出的 UDP 请求与 FPGA 发回的 UDP 回包。这个帧序留待 `fpga_core` 连发两包的端到端实验验证。[ARP 查询命中与未命中的处理](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
 
 ## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
 
