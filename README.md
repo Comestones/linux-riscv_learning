@@ -11,7 +11,7 @@
 | 选修 · RISC-V 系统 | 做内核或 BSP 时跟踪一次系统调用。做处理器验证时对照指令跟踪和定时器访问。 | 从 [RISC-V 项目规划](riscv-systems/README.md)选 [xv6 与 GDB](riscv-systems/xv6.md) 或 [Ibex 裸机与验证](riscv-systems/ibex.md)。 |
 | 选修 · Linux RDMA | 读用户态 verbs 和连接管理代码，再用可用的 RDMA 设备验证一次通信。 | 按 [RDMA 源码、构建与通信实验](linux-rdma/README.md)推进。 |
 
-**当前进度（2026-11-20 整理）。** Windows 已用 Vivado MCP 展开 X10 RTL。Ubuntu 已启动 xv6 并运行用户程序，XSim 最小用例也已通过。串口终端、独立计数器与 FIFO 实验待做，X10 原始 cocotb 用例也待取得运行结果。下一步先让 ADV 完成 UART 回环，再记录单任务接收 6000 行时的丢行数和按键延迟。
+**当前进度（2026-11-24）。** Windows 已用 Vivado MCP 展开 X10 RTL。Ubuntu 已启动 xv6 并运行用户程序，XSim 最小用例和 X10 原始 UDP 回显用例也已通过。当前学习重点是 X10 的 ARP 缓存，今天在 Ubuntu 比较两次地址查询。串口终端、独立计数器与 FIFO 实验待做。[X10 学习日志](ethernet-x10/log.md)
 
 ## 获取工程
 

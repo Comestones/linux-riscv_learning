@@ -2,6 +2,48 @@
 
 每次学习在本页按日期追加一节，最近一次放在最上面。[工程框架](README.md#工程框架) · [仿真环境与固定依赖](udp-verification.md#在-ubuntu-运行原始-pytest)
 
+## 2026-11-24 · ARP 什么时候需要发广播？
+
+昨天已读完 UDP 回显通路，并在 Ubuntu 上通过了 `fpga_core` 的原始用例（`1 passed in 3.57s`，退出码 `0`）。今天沿着回包路径深入一层，单独验证 `arp` 模块。**目标是用两段日志解释，同一子网中的两个 IP 为什么一个能直接查到 MAC，另一个需要先发广播。** 今日实验待运行。
+
+### 1. 先读两种输入，写下预测
+
+打开 `tb/arp/test_arp.py` 第 149～223 行。第 157 行的 `tb.send(test_pkt)` 模拟主机从以太网上发来一帧 ARP 请求，发送者是 `192.168.1.100`。第 178 和 189 行的 `arp_req_source.send(...)` 则模拟 FPGA 内部的 IPv4 发送逻辑，分别向 ARP 模块查询 `.100` 和 `.102` 的 MAC。开跑前先预测，哪一次**内部查询**会在以太网口产生新的 ARP 广播？[上游激励与断言](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tb/arp/test_arp.py#L149-L223)
+
+### 2. 在 Ubuntu 运行 64 位 ARP 用例
+
+从 SELF 主仓库根目录打开 Bash，沿用昨天已经通过基线的虚拟环境。下面只选 64 位数据宽度，终端原始输出保存在独立的 `sim/x10-arp64.log`。
+
+```bash
+git pull --ff-only
+cd ethernet-x10
+source sim/.venv/bin/activate
+set -o pipefail
+SIM=icarus python -m pytest -v -s --log-cli-level=INFO \
+  'verilog-ethernet/tb/arp/test_arp.py::test_arp[64]' \
+  2>&1 | tee sim/x10-arp64.log
+run_status=$?
+printf '退出码 %s\n' "$run_status"
+```
+
+### 3. 对照日志，回到 RTL
+
+在日志中搜索 `Cached read` 和 `Uncached read, inside subnet`。前者看紧随其后的 `Read value`，后者先看 `RX packet` 的目的 MAC、ARP 的 `op` 和 `pdst`，再看 `Read value`。把观察与下表对照。
+
+| 内部查询 | 预期链路行为 | 预期查询结果 |
+| --- | --- | --- |
+| `192.168.1.100` | 模块已从先前收到的 ARP 请求学到该主机地址，直接返回缓存结果。 | `error=0`，MAC 为 `5a:51:52:53:54:55`。 |
+| `192.168.1.102` | 模块发出目的 MAC 为 `ff:ff:ff:ff:ff:ff` 的 ARP 请求，`op=1`、`pdst=192.168.1.102`。测试台随后代主机应答。 | 收到应答后返回 `error=0`，MAC 为 `6a:61:62:63:64:65`。 |
+
+用两处 RTL 解释差异。`arp.v` 把收到的发送者 IP/MAC 提交给缓存，`arp_cache.v` 检查表项有效位和 IP 是否都匹配。最后回到昨天的 X10 场景，回答“同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？”今天的用例覆盖 ARP 模块，两次 UDP 连发留作端到端验证。[缓存写入](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L295-L302) · [缓存命中条件](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp_cache.v#L164-L170)
+
+**验收与回填。** 一个 pytest 参数项内，cocotb 会组合输入停顿与输出背压各开、关两种情况。预期汇总为 `TESTS=4 PASS=4 FAIL=0 SKIP=0`，pytest 显示 `1 passed`，终端退出码为 `0`。[测试组合](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/tb/arp/test_arp.py#L319-L340)
+
+| 实测项 | 本次结果 |
+| --- | --- |
+| `.100` 查到的 MAC，以及 `.102` 广播查询的目标 IP 和最终 MAC | 待填 |
+| cocotb 汇总、pytest 汇总、退出码（失败时记录首条报错） | 待填 |
+
 ## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
 
 **Ubuntu 基线已通过。** 今天只运行上游原始用例 `test_fpga_core.py::test_fpga_core`。目标是从仿真日志认出端口 1 上的四帧，并用断言确认最后一帧回给了谁、带回了哪些数据。整次实验在 Icarus 中运行，无需连接板卡。
