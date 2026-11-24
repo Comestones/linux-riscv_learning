@@ -48,6 +48,57 @@ printf '退出码 %s\n' "$run_status"
 
 **同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？** 在昨天的 X10 回显用例中，FPGA 已从第一笔事务的 ARP 应答学到主机 `.100` 的 MAC。如果紧接着收到同一主机的第二个 UDP 请求，且缓存项仍然有效，FPGA 就能直接取得目的 MAC 并封装回包。预计省去 FPGA 广播的 ARP 请求和主机发给 FPGA 的 ARP 应答，线上只剩主机发出的 UDP 请求与 FPGA 发回的 UDP 回包。这个帧序留待 `fpga_core` 连发两包的端到端实验验证。[ARP 查询命中与未命中的处理](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
 
+### 追加 30 分钟 · 在端口 1 验证第二个 UDP 请求（待实测）
+
+**0–5 分钟｜预测。** 画两行帧序。第一行用昨天实测的四帧作对照，第二行从同一主机再次向 `192.168.1.128:1234` 发 UDP 开始。圈出你预计 FPGA 接下来发出的第一帧。两笔事务共用一次 `tb.init()`，这样第一轮学到的 IP/MAC 映射才能用于第二轮。
+
+**5–15 分钟｜扩展激励。** 在 Ubuntu 的 SELF 根目录打开 Bash。以下命令复用已有虚拟环境，并在 `sim/udp-pair/` 放一份可编辑的上游工作副本，原始基线仍可单独运行。
+
+```bash
+cd ethernet-x10
+source sim/.venv/bin/activate
+if [ ! -d sim/udp-pair ]; then
+  git -C verilog-ethernet worktree add --detach "$PWD/sim/udp-pair" 77320a9
+fi
+tb_file=sim/udp-pair/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py
+```
+
+打开 `$tb_file`，把导入 `RisingEdge` 的一行改为 `from cocotb.triggers import RisingEdge, with_timeout`。在 `run_test` 的**第一轮载荷断言之后**、最后两个时钟沿之前插入下面这段。保留首轮的全部断言，沿用相同地址和端口，把第二包载荷倒序，这样第一包的回显就无法冒充第二包。[原测试的插入位置](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/example/ExaNIC_X10/fpga/tb/fpga_core/test_fpga_core.py#L139-L154)
+
+```python
+    second_payload = payload[::-1]
+    second_pkt = Ether(src=test_pkt.src, dst=test_pkt.dst) / ip / udp / second_payload
+    tb.log.info("UDP2 request")
+    await tb.sfp_source[0].send(XgmiiFrame.from_payload(second_pkt.build()))
+
+    frame = await with_timeout(tb.sfp_sink[0].recv(), 20, "us")
+    reply = Ether(bytes(frame.get_payload()))
+    tb.log.info("UDP2 first reply: %s", reply.summary())
+    assert IP in reply and UDP in reply, reply.summary()
+    assert (reply.src, reply.dst) == (second_pkt.dst, second_pkt.src)
+    assert (reply[IP].src, reply[IP].dst) == (ip.dst, ip.src)
+    assert (reply[UDP].sport, reply[UDP].dport) == (udp.dport, udp.sport)
+    assert bytes(reply[UDP].payload) == second_payload
+    tb.log.info("UDP2 echo verified")
+```
+
+**15–25 分钟｜跑仿真。** 在刚才的终端运行工作副本中的测试。第二轮只取端口 1 的下一帧，不再由主机发送 ARP 应答。若第一帧是 ARP，日志会在断言前留下帧类型；若一直收不到帧，20 µs 的仿真时间上限会结束等待。[cocotb 1.7.2 的 with_timeout](https://docs.cocotb.org/en/v1.7.2/triggers.html#cocotb.triggers.with_timeout)
+
+```bash
+set -o pipefail
+SIM=icarus python -m pytest -v -s --log-cli-level=INFO "${tb_file}::test_fpga_core" \
+  2>&1 | tee sim/x10-udp-pair.log
+run_status=$?
+printf '退出码 %s\n' "$run_status"
+grep -nE 'UDP2|TESTS=|1 passed' sim/x10-udp-pair.log
+```
+
+**25–30 分钟｜验收。** 在本节末尾填下实测结果。预期第一轮四帧，第二轮从请求到匹配回包之间只有两帧：主机发 UDP，FPGA 回 UDP。以 `UDP2 first reply` 的类型、`UDP2 echo verified`、pytest 的 `1 passed` 和退出码 `0` 共同确认。若实测与预测不同，记录实际首帧或超时位置，再对照 `arp.v` 中返回缓存 MAC 的分支。[发送侧的缓存查询](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
+
+| 第二轮第一帧（附日志行号） | 倒序载荷检查 | pytest / 退出码 |
+| --- | --- | --- |
+| 待填 | 待填 | 待填 |
+
 ## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
 
 **Ubuntu 基线已通过。** 今天只运行上游原始用例 `test_fpga_core.py::test_fpga_core`。目标是从仿真日志认出端口 1 上的四帧，并用断言确认最后一帧回给了谁、带回了哪些数据。整次实验在 Icarus 中运行，无需连接板卡。
