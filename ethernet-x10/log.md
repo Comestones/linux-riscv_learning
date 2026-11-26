@@ -2,6 +2,10 @@
 
 每次学习在本页按日期追加一节，最近一次放在最上面。[工程框架](README.md#工程框架) · [仿真环境与固定依赖](udp-verification.md#在-ubuntu-运行原始-pytest)
 
+## 2026-11-26 · 第二个 UDP 请求直接回显
+
+在 `fpga_core` 端口 1 的 XGMII 仿真中，两包共用一次复位。FPGA 在第一轮从 ARP 应答学到主机 `.100` 的 MAC。第二轮只有主机的 UDP 请求和 FPGA 的 UDP 回包，省去了 FPGA 的 ARP 广播请求和主机的 ARP 应答。
+
 ## 2026-11-24 · ARP 什么时候需要发广播？
 
 昨天已读完 UDP 回显通路，并在 Ubuntu 上通过了 `fpga_core` 的原始用例（`1 passed in 3.57s`，退出码 `0`）。今天沿着回包路径深入一层，单独验证 `arp` 模块。**目标是用两段日志解释，同一子网中的两个 IP 为什么一个能直接查到 MAC，另一个需要先发广播。** 64 位 ARP 用例已在 Ubuntu 通过。
@@ -46,9 +50,9 @@ printf '退出码 %s\n' "$run_status"
 | 内部查询 `192.168.1.102` | 第 342 行开始 `Uncached read, inside subnet`。第 344 行（44224.00 ns），`.101` 发出 `op=who-has` 请求，以太网目的 MAC 为 `ff:ff:ff:ff:ff:ff`，ARP 目标为 `pdst=192.168.1.102`。测试台代 `.102` 应答后，第 346 行（44392.00 ns）返回 `error=0, mac=116966495052901`，即 `6a:61:62:63:64:65`。 |
 | cocotb 汇总、pytest 汇总、退出码 | `TESTS=4 PASS=4 FAIL=0 SKIP=0`（累计仿真 58488.00 ns），pytest 显示 `1 passed in 1.72s`，终端退出码为 `0`。 |
 
-**同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？** 在昨天的 X10 回显用例中，FPGA 已从第一笔事务的 ARP 应答学到主机 `.100` 的 MAC。如果紧接着收到同一主机的第二个 UDP 请求，且缓存项仍然有效，FPGA 就能直接取得目的 MAC 并封装回包。预计省去 FPGA 广播的 ARP 请求和主机发给 FPGA 的 ARP 应答，线上只剩主机发出的 UDP 请求与 FPGA 发回的 UDP 回包。这个帧序留待 `fpga_core` 连发两包的端到端实验验证。[ARP 查询命中与未命中的处理](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
+**同一主机在同一次仿真中再发一包 UDP，预计哪两帧可以省去？** 在昨天的 X10 回显用例中，FPGA 已从第一笔事务的 ARP 应答学到主机 `.100` 的 MAC。如果紧接着收到同一主机的第二个 UDP 请求，且缓存项仍然有效，FPGA 就能直接取得目的 MAC 并封装回包。预计省去 FPGA 广播的 ARP 请求和主机发给 FPGA 的 ARP 应答，线上只剩主机发出的 UDP 请求与 FPGA 发回的 UDP 回包。[ARP 查询命中与未命中的处理](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
 
-### 追加 30 分钟 · 在端口 1 验证第二个 UDP 请求（待实测）
+### 追加 30 分钟 · 在端口 1 验证第二个 UDP 请求（11 月 26 日已通过）
 
 **0–5 分钟｜预测。** 画两行帧序。第一行用昨天实测的四帧作对照，第二行从同一主机再次向 `192.168.1.128:1234` 发 UDP 开始。圈出你预计 FPGA 接下来发出的第一帧。两笔事务共用一次 `tb.init()`，这样第一轮学到的 IP/MAC 映射才能用于第二轮。
 
@@ -93,11 +97,11 @@ printf '退出码 %s\n' "$run_status"
 grep -nE 'UDP2|TESTS=|1 passed' sim/x10-udp-pair.log
 ```
 
-**25–30 分钟｜验收。** 在本节末尾填下实测结果。预期第一轮四帧，第二轮从请求到匹配回包之间只有两帧：主机发 UDP，FPGA 回 UDP。以 `UDP2 first reply` 的类型、`UDP2 echo verified`、pytest 的 `1 passed` 和退出码 `0` 共同确认。若实测与预测不同，记录实际首帧或超时位置，再对照 `arp.v` 中返回缓存 MAC 的分支。[发送侧的缓存查询](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
+**25–30 分钟｜验收。** 下表行号取自 11 月 26 日终端显示的 `sim/x10-udp-pair.log` 摘录。以 `UDP2 first reply` 的类型、`UDP2 echo verified`、pytest 的 `1 passed` 和退出码 `0` 共同确认。若实测与预测不同，记录实际首帧或超时位置，再对照 `arp.v` 中返回缓存 MAC 的分支。[发送侧的缓存查询](https://github.com/alexforencich/verilog-ethernet/blob/77320a9471d19c7dd383914bc049e02d9f4f1ffb/rtl/arp.v#L366-L384)
 
-| 第二轮第一帧（附日志行号） | 倒序载荷检查 | pytest / 退出码 |
+| 第二轮请求与 FPGA 发出的第一帧 | 倒序载荷检查 | cocotb / pytest / 退出码 |
 | --- | --- | --- |
-| 待填 | 待填 | 待填 |
+| 第 74 行（4377.60 ns）打印 `UDP2 request`。第 77 行（5632.00 ns）`UDP2 first reply` 显示 UDP 回包，方向为 `192.168.1.128:1234 → 192.168.1.100:5678`。 | 第 78 行（5632.00 ns）打印 `UDP2 echo verified`，回包与第二包从 `ff` 到 `00` 的 256 字节载荷一致。 | 第 85 行 `TESTS=1 PASS=1 FAIL=0 SKIP=0`（仿真 5644.80 ns）。第 91 行 `1 passed in 4.29s`，退出码 `0`。 |
 
 ## 2026-11-23 · 在 Ubuntu 上验证第一次 UDP 回显
 
